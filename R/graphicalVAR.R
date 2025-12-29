@@ -114,7 +114,7 @@ graphicalVAR <-
       if (mimic == "0.1.2"){
         lams <- SparseTSCGM_lambdas(data_l, data_c, nLambda, lambda.min.ratio=lambda_min_kappa)      
       } else {
-        lams <- generate_lambdas(data_l, data_c, nLambda_kappa = nLambda,nLambda_beta = nLambda, penalty = penalty, 
+        lams <- generate_lambdas(data_l, data_c, nLambda_kappa = nLambda,nLambda_beta = nLambda,
                                  lambda_min_kappa = lambda_min_kappa,lambda_min_beta = lambda_min_beta, penalize.diagonal = penalize.diagonal,
                                  version0.1.4 = mimic == "0.1.4")      
       }
@@ -187,7 +187,7 @@ graphicalVAR <-
         
         Estimates[[i]] <- list(beta = beta, kappa = kappa, EBIC = EBIC)
       } else {
-        tryres <- try(Rothmana(data_l, data_c, lambdas$beta[i],lambdas$kappa[i],     regularize_mat_beta=regularize_mat_beta,
+        tryres <- try(Rothmana(data_l, data_c, lambdas$beta[i],lambdas$kappa[i], penalty = penalty, regularize_mat_beta=regularize_mat_beta,
                                regularize_mat_kappa=regularize_mat_kappa, gamma=gamma,maxit.in=maxit.in, maxit.out = maxit.out,
                                penalize.diagonal = penalize.diagonal,
                                mimic = mimic, likelihood = likelihood)  )
