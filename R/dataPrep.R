@@ -57,7 +57,14 @@ tsData <- function(data,
   if (centerWithin){
     # Only if N > 1 (very minimal floating point error can lead to different layout to older version otherwise)
     if (length(unique(data[[idvar]])) > 1){
-      data <- data %>% dplyr::group_by(.data[[idvar]]) %>% dplyr::mutate_at(funs(scale(.,center=TRUE,scale=FALSE)),.vars = vars)          
+      data <- data %>%
+        dplyr::group_by(.data[[idvar]]) %>%
+        dplyr::mutate(
+          dplyr::across(
+            all_of(vars),
+            ~ scale(.x, center = TRUE, scale = FALSE)[, 1]
+            )
+          )          
     }
   }
 
@@ -106,7 +113,16 @@ tsData <- function(data,
   
   # Lagged datasets:
   data_l <- do.call(cbind,lapply(lags, function(l){
-    data_lagged <- augData %>% dplyr::group_by(.data[[idvar]],.data[[dayvar]]) %>% dplyr::mutate_at(funs(shift),.vars = vars) %>% ungroup %>% dplyr::select(all_of(vars))
+    data_lagged <- augData %>%
+      dplyr::group_by(.data[[idvar]], .data[[dayvar]]) %>%
+      dplyr::mutate(
+        dplyr::across(
+          all_of(vars),
+          ~ shift(.x)
+        )
+      ) %>%
+      dplyr::ungroup() %>%
+      dplyr::select(all_of(vars))
     names(data_lagged) <- paste0(vars,"_lag",l)
     data_lagged
   }))
