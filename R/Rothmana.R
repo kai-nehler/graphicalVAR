@@ -1,5 +1,5 @@
 Rothmana <-
-function(X, Y, lambda_beta, lambda_kappa, regularize_mat_beta, regularize_mat_kappa, convergence = 1e-4, gamma = 0.5, maxit.in = 100, maxit.out = 100,
+function(X, Y, lambda_beta, lambda_kappa, penalty, regularize_mat_beta, regularize_mat_kappa, convergence = 1e-4, gamma = 0.5, maxit.in = 100, maxit.out = 100,
          penalize.diagonal, # if FALSE, penalizes the first diagonal (assumed to be auto regressions), even when ncol(X) != ncol(Y) !
          interceptColumn = 1, # Set to NULL or NA to omit
          mimic = "current",
@@ -22,7 +22,15 @@ function(X, Y, lambda_beta, lambda_kappa, regularize_mat_beta, regularize_mat_ka
   
   # Add regularization matrix:
   if (missing(regularize_mat_beta)){
-    lambda_mat <- matrix(lambda_beta,nX, nY)
+    if (penalty == "lasso"){
+       lambda_mat <- matrix(lambda_beta,nX, nY)
+    } else if (penalty == "atan") {
+              lambda_atanprep <- 1e-4  
+              beta_atanprep <- beta_ridge_C(X, Y, lambda_atanprep)
+              beta_atanprep <- abs(beta_atanprep)
+              gam <- 0.01
+              lambda_mat <- lambda_beta * (gam * (gam + 2/pi)) / (gam^2 + beta_atanprep^2)
+    }
     if (!penalize.diagonal){
       if (nY == nX){
         add <- 0
@@ -36,7 +44,9 @@ function(X, Y, lambda_beta, lambda_kappa, regularize_mat_beta, regularize_mat_ka
       }
     }
   } else {
-    lambda_mat <- lambda_beta * t(regularize_mat_beta)
+    if (penalty == "lasso"){
+             lambda_mat <- lambda_beta * t(regularize_mat_beta)
+             }
     if (nrow(lambda_mat) == nX-1){
       lambda_mat <- rbind(FALSE,lambda_mat)
     }
