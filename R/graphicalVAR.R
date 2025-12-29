@@ -18,6 +18,7 @@ graphicalVAR <-
   function(
     data, # A n by p data frame containing repeated measures
     nLambda = 50, # Either single value or vector of two corresponding to c(kappa, beta)
+    penalty = c("lasso", "atan"),
     verbose = TRUE,
     gamma = 0.5,
     scale = TRUE,
@@ -25,7 +26,6 @@ graphicalVAR <-
     lambda_kappa, 
     regularize_mat_beta,
     regularize_mat_kappa,
-    
     maxit.in = 100, maxit.out = 100,
     deleteMissings = TRUE,
     penalize.diagonal = TRUE,
@@ -114,7 +114,8 @@ graphicalVAR <-
       if (mimic == "0.1.2"){
         lams <- SparseTSCGM_lambdas(data_l, data_c, nLambda, lambda.min.ratio=lambda_min_kappa)      
       } else {
-        lams <- generate_lambdas(data_l, data_c, nLambda,nLambda, lambda_min_kappa=lambda_min_kappa,lambda_min_beta=lambda_min_beta,penalize.diagonal=penalize.diagonal,
+        lams <- generate_lambdas(data_l, data_c, nLambda_kappa = nLambda,nLambda_beta = nLambda, penalty = penalty, 
+                                 lambda_min_kappa = lambda_min_kappa,lambda_min_beta = lambda_min_beta, penalize.diagonal = penalize.diagonal,
                                  version0.1.4 = mimic == "0.1.4")      
       }
       if (missing(lambda_beta)){
