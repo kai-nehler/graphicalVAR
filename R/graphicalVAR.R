@@ -18,9 +18,11 @@ graphicalVAR <-
   function(
     data, # A n by p data frame containing repeated measures
     nLambda = 50, # Either single value or vector of two corresponding to c(kappa, beta)
-    penalty = c("lasso", "atan"),
+    penalty = c("lasso", "atan", "scad"),
     verbose = TRUE,
     gamma = 0.5,
+    regression_gamma_nonconvex = NULL,
+    contemp_gamma_nonconvex = NULL,
     scale = TRUE,
     lambda_beta,
     lambda_kappa, 
@@ -32,6 +34,8 @@ graphicalVAR <-
     lambda_min_kappa = 0.05,
     lambda_min_beta = lambda_min_kappa,
     mimic = c("current","0.3.2","0.1.2","0.1.4","0.1.5","0.2"),
+    ridge_correction = c("none", "sample_size"),
+    start_beta = c("empty", "ridge"),
     vars,
     beepvar,
     dayvar,
@@ -42,6 +46,7 @@ graphicalVAR <-
     ebic_tol = 1e-4 # Tolerance for detecting minimum EBIC
   ){
     
+    penalty <- match.arg(penalty)
     mimic <- match.arg(mimic)
     if (mimic == "0.1.2"){
       if (lambda_min_beta != lambda_min_kappa){
@@ -187,10 +192,14 @@ graphicalVAR <-
         
         Estimates[[i]] <- list(beta = beta, kappa = kappa, EBIC = EBIC)
       } else {
-        tryres <- try(Rothmana(data_l, data_c, lambdas$beta[i],lambdas$kappa[i], penalty = penalty, regularize_mat_beta=regularize_mat_beta,
+        tryres <- try(Rothmana(data_l, data_c, lambdas$beta[i],lambdas$kappa[i], penalty = penalty,
+                               regression_gamma_nonconvex = regression_gamma_nonconvex,
+                               contemp_gamma_nonconvex = contemp_gamma_nonconvex, 
+                               regularize_mat_beta=regularize_mat_beta,
                                regularize_mat_kappa=regularize_mat_kappa, gamma=gamma,maxit.in=maxit.in, maxit.out = maxit.out,
                                penalize.diagonal = penalize.diagonal,
-                               mimic = mimic, likelihood = likelihood)  )
+                               mimic = mimic, ridge_correction = ridge_correction, start_beta = start_beta, 
+                               likelihood = likelihood)  )
         if (is(tryres,"try-error")){
           Estimates[[i]] <- list(beta=matrix(NA,Nvar,Nvar+1), kappa=matrix(NA,Nvar,Nvar), EBIC = Inf,
                                  error = tryres)

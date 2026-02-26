@@ -1,13 +1,27 @@
 Rothmana <-
-function(X, Y, lambda_beta, lambda_kappa, penalty, regularize_mat_beta, regularize_mat_kappa, convergence = 1e-4, gamma = 0.5, maxit.in = 100, maxit.out = 100,
+function(X, Y, lambda_beta, lambda_kappa, penalty, 
+         regression_gamma_nonconvex = NULL, contemp_gamma_nonconvex = NULL,
+         regularize_mat_beta, regularize_mat_kappa, convergence = 1e-4, gamma = 0.5, maxit.in = 100, maxit.out = 100,
          penalize.diagonal, # if FALSE, penalizes the first diagonal (assumed to be auto regressions), even when ncol(X) != ncol(Y) !
          interceptColumn = 1, # Set to NULL or NA to omit
          mimic = "current",
+         start_beta = c("empty", "ridge"),
+         ridge_correction = c("none", "sample_size"),
          likelihood = c("unpenalized","penalized")
          ){
   # Algorithm 2 of Rothmana, Levinaa & Ji Zhua
   
   likelihood <- match.arg(likelihood)
+  
+  # Defaults for nonconvex shape parameter (used for BOTH atan and scad)
+  if (penalty %in% c("atan","scad")) {
+    if (is.null(regression_gamma_nonconvex)) {
+      regression_gamma_nonconvex <- if (penalty == "atan") 0.5 else 3.7
+    }
+    if (is.null(contemp_gamma_nonconvex)) {
+      contemp_gamma_nonconvex <- if (penalty == "atan") 0.5 else 3.7
+    }
+  }
   
   nY <- ncol(Y)
   nX <- ncol(X)
@@ -20,17 +34,13 @@ function(X, Y, lambda_beta, lambda_kappa, penalty, regularize_mat_beta, regulari
     }
   }
   
-  # Add regularization matrix:
+  # Add regularization matrix for regression coefficients:
+  # Initial lambda_mat is redundant for nonconvex penalties; 
+  # it is recomputed from beta and masked by regularize_mat_beta at the start of 
+  # each iteration.
+  # Without regularization matrix - everything is subject to regularization
   if (missing(regularize_mat_beta)){
-    if (penalty == "lasso"){
-       lambda_mat <- matrix(lambda_beta,nX, nY)
-    } else if (penalty == "atan") {
-              lambda_atanprep <- 1e-4  
-              beta_atanprep <- beta_ridge_C(X, Y, lambda_atanprep)
-              beta_atanprep <- abs(beta_atanprep)
-              gam <- 0.01
-              lambda_mat <- lambda_beta * (gam * (gam + 2/pi)) / (gam^2 + beta_atanprep^2)
-    }
+    lambda_mat <- matrix(lambda_beta,nX, nY)
     if (!penalize.diagonal){
       if (nY == nX){
         add <- 0
@@ -43,10 +53,12 @@ function(X, Y, lambda_beta, lambda_kappa, penalty, regularize_mat_beta, regulari
         lambda_mat[i+add,i] <- 0
       }
     }
+    
+    # by default, regularize everything (later: diagonal & intercept handled below)
+    regularize_mat_beta <- matrix(TRUE, nY, nX) 
+    
   } else {
-    if (penalty == "lasso"){
-             lambda_mat <- lambda_beta * t(regularize_mat_beta)
-             }
+    lambda_mat <- lambda_beta * t(regularize_mat_beta)
     if (nrow(lambda_mat) == nX-1){
       lambda_mat <- rbind(FALSE,lambda_mat)
     }
@@ -66,17 +78,80 @@ function(X, Y, lambda_beta, lambda_kappa, penalty, regularize_mat_beta, regulari
   }
  
   n <- nrow(X)
-  beta_ridge <- beta_ridge_C(X, Y, lambda_beta)
+  # ridge correction for starting values:
+  if (ridge_correction == "sample_size") {
+    beta_ridge <- beta_ridge_C(X, Y, lambda_beta * n)
+  } else if (ridge_correction == "none") {
+    beta_ridge <- beta_ridge_C(X, Y, lambda_beta)
+  }
   
   # Starting values:
-  beta <- matrix(0, nX, nY)  
+  if (start_beta == "ridge") {
+    beta <- beta_ridge
+  } else if (start_beta == "empty") {
+    beta <- matrix(0, nX, nY)  
+  }
   
   # Algorithm:
   it <- 0
 
   repeat{
     it <- it + 1
-    kappa <- Kappa(beta, X, Y, lambda_kappa, regularize_mat_kappa)
+    kappa <- Kappa(beta, X, Y, penalty, contemp_gamma_nonconvex, lambda_kappa, regularize_mat_kappa)
+    
+    # Update lambda_mat only for nonconvex penalties
+    if (penalty %in% c("atan","scad")) {
+      
+      if (penalty == "atan") {
+        lambda_mat <- (regression_gamma_nonconvex * (regression_gamma_nonconvex + 2/pi)) /
+          (regression_gamma_nonconvex^2 + beta^2)
+        
+      } else if (penalty == "scad") {
+        t <- pmax(abs(beta), 1e-12)
+        lambda_mat <- ifelse(
+          t <= lambda_beta,
+          lambda_beta,
+          ifelse(t <= regression_gamma_nonconvex * lambda_beta,
+                 (regression_gamma_nonconvex * lambda_beta - t) /
+                   ((regression_gamma_nonconvex - 1)),
+                 0)
+        )
+      }
+      
+      # apply either default or user mask
+      lambda_mat <- lambda_mat * t(regularize_mat_beta)
+      
+      
+      # allow mask without intercept row
+      if (nrow(lambda_mat) == nX - 1) {
+        lambda_mat <- rbind(FALSE, lambda_mat)
+      }
+      if (nrow(lambda_mat) != nX || ncol(lambda_mat) != nY) {
+        stop("lambda_mat has wrong dimensions after applying regularize_mat_beta.")
+      }
+      
+      # diagonal handling
+      if (!penalize.diagonal) {
+        if (!exists("add", inherits = FALSE)) {
+          # only needed if missing(regularize_mat_beta) AND !penalize.diagonal
+          if (nY == nX) {
+            add <- 0
+          } else if (nY == nX - 1) {
+            add <- 1
+          } else {
+            stop("Beta is not P x P or P x P+1, cannot detect diagonal.")
+          }
+        }
+        for (i in 1:min(nY, nX)) lambda_mat[i + add, i] <- 0
+      }
+      
+      # intercept row never penalized
+      if (!is.null(interceptColumn) && !is.na(interceptColumn)) {
+        lambda_mat[interceptColumn, ] <- 0
+      }
+    }
+    
+    
     beta_old <- beta
     beta <- Beta_C(kappa, beta, X, Y, lambda_beta, lambda_mat, convergence, maxit.in) 
     
