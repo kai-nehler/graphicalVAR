@@ -201,5 +201,5 @@ function(X, Y, lambda_beta, lambda_kappa, penalty,
 
   
   ### TRANSPOSE BETA!!!
-  return(list(beta=t(beta), kappa=kappa, EBIC = EBIC))
+  return(list(beta=t(beta), kappa=kappa, EBIC = EBIC, it = it))
 }

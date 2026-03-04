@@ -201,7 +201,7 @@ graphicalVAR <-
                                mimic = mimic, ridge_correction = ridge_correction, start_beta = start_beta, 
                                likelihood = likelihood)  )
         if (is(tryres,"try-error")){
-          Estimates[[i]] <- list(beta=matrix(NA,Nvar,Nvar+1), kappa=matrix(NA,Nvar,Nvar), EBIC = Inf,
+          Estimates[[i]] <- list(beta=matrix(NA,Nvar,Nvar+1), kappa=matrix(NA,Nvar,Nvar), EBIC = Inf, it = Inf,
                                  error = tryres)
         } else {
           Estimates[[i]] <- tryres
