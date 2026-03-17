@@ -17,7 +17,7 @@ function(beta, X, Y, penalty,contemp_gamma_nonconvex, lambda_kappa,regularize_ma
     kappa_prep <- abs(solve(SigmaR))
     
     if (penalty == "atan") {
-      lambda_mat <- (contemp_gamma_nonconvex * (contemp_gamma_nonconvex + 2/pi)) /
+      lambda_mat <- lambda_kappa * (contemp_gamma_nonconvex * (contemp_gamma_nonconvex + 2/pi)) /
         (contemp_gamma_nonconvex^2 + kappa_prep^2)
       
     } else if (penalty == "scad") {

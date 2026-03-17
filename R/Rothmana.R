@@ -103,7 +103,7 @@ function(X, Y, lambda_beta, lambda_kappa, penalty,
     if (penalty %in% c("atan","scad")) {
       
       if (penalty == "atan") {
-        lambda_mat <- (regression_gamma_nonconvex * (regression_gamma_nonconvex + 2/pi)) /
+        lambda_mat <- lambda_beta * (regression_gamma_nonconvex * (regression_gamma_nonconvex + 2/pi)) /
           (regression_gamma_nonconvex^2 + beta^2)
         
       } else if (penalty == "scad") {
